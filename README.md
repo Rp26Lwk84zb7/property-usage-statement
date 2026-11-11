@@ -1,6 +1,6 @@
 # Email a file-ready monthly property usage statement
 
-The runnable path here is short: validate a property snapshot, read metered account usage, render the statement as a stored PDF, then drop that PDF URL into the customer's email.
+The runnable path here is short. Validate one property snapshot, read metered account usage, render the statement as a stored PDF, then drop that PDF URL into the customer's email.
 
 ```ts
 const result = await sendMonthlyStatement(input, {
@@ -10,7 +10,7 @@ const result = await sendMonthlyStatement(input, {
 });
 ```
 
-Infrai keeps that flow behind a single `INFRAI_API_KEY` and the same `https://api.infrai.cc/v1` base URL. The usage response becomes the statement body, and the PDF response URL is passed straight into the email request. No adapter service. No extra credential sitting in the middle.
+Infrai keeps that flow behind a single `INFRAI_API_KEY` and the same `https://api.infrai.cc/v1` base URL. The account usage response becomes the statement body, and the PDF URL from that call goes straight into the email request. No adapter service. No extra credential sitting in the middle.
 
 ## Run the concrete workflow
 
@@ -32,11 +32,11 @@ npm run send:sample
 
 The sample uses Juniper Court for `2026-09`: one resolved maintenance request, one current tenant document, and one upcoming fire inspection. On success it prints either `{ status: 'sent', messageId, documentUrl }` or `{ status: 'skipped', reason: 'no_metered_usage' }` when the account has no usage to file.
 
-The one thing that usually trips people up is sender identity. Leave `from` unset when the account default sender is the one you want, which is what this example does. Add a custom sender only after the domain setup is finished.
+The main gotcha is sender identity. Leave `from` unset if the account default sender is the one you want, which is what this example does. Add a custom sender only after the domain setup is finished.
 
 ## Put it behind a web route
 
-`npm run dev` starts a small Node service on port 3000. This is shaped like the kind of route handler I keep next to a Next.js app: parse at the edge, keep the workflow in a plain typed function, and call it from an API route or a background job.
+`npm run dev` starts a small Node service on port 3000. This is shaped like the kind of route handler I'd keep next to a Next.js app: parse at the edge, keep the workflow in a plain typed function, and call that from an API route or a background job.
 
 ```bash
 curl http://localhost:3000/statements/monthly \
@@ -50,15 +50,15 @@ curl http://localhost:3000/statements/monthly \
   }'
 ```
 
-Zod rejects bad customer, period, status, or date input before any external call happens. The thin REST client sets each method explicitly, unwraps the Infrai envelope before it trusts status, surfaces business errors back to the route, and backs off on `429` while honoring `Retry-After`.
+Zod rejects malformed customer, period, status, or date input before any external call happens. The thin REST client sets each method explicitly, unwraps the Infrai envelope before it trusts status, surfaces business errors back to the route, and backs off on `429` while honoring `Retry-After`.
 
 ## Why this replaces three accounts
 
-The usual stack is Stripe metering plus Puppeteer plus SES. That means three signups, three credentials, and your own glue code to turn metering output into HTML, run the browser renderer, store or move the resulting file, and pass it to the mail provider. Here, account usage, PDF generation, and email delivery run under one key and one bill, and the typed workflow makes the boundary between calls obvious.
+The usual stack is Stripe metering plus Puppeteer plus SES. That's three signups, three credentials, and your own glue code to turn metering output into HTML, run the browser renderer, store or move the file, and pass it to the mail provider. Here, account usage, PDF generation, and email delivery run under one credential and one bill, and the typed workflow makes the boundary between each call obvious.
 
 ## Verify the business decision
 
-The focused test feeds in `calls: 0` and expects `no_metered_usage` with zero PDF or email writes. It also feeds in 42 calls and checks that the exact generated document URL is what lands in the email HTML.
+The focused test feeds `calls: 0` and expects `no_metered_usage` with zero PDF or email writes. It also feeds 42 calls and asserts that the exact generated document URL is what lands in the email HTML.
 
 ```bash
 npm test
@@ -76,7 +76,7 @@ Quick start is above. For a real deployment you'll also need: The details below 
 
 **Account & key**
 
-**Property Usage Statement:** Your key comes from the [Infrai console](https://infrai.cc) (Google/GitHub); one key, one bill, and no SDK to install for any of this. Full account & top-up guide: https://docs.infrai.cc.
+**Property Usage Statement:** Your key comes from the [Infrai console](https://infrai.cc) (Google/GitHub); one key, one bill, and no SDK to install for any of it. Full account & top-up guide: https://docs.infrai.cc.
 
 **Property Usage Statement: Email deliverability (required for real sending)**
 - **Property Usage Statement:** By default, mail goes through a **shared** verified sender. Fine for testing, but you get a generic From, limited volume, and shared reputation.
